@@ -1,0 +1,326 @@
+using System;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Windows.Forms;
+using CinemaBookingApp.Data;
+
+namespace CinemaBookingApp.Forms
+{
+    public partial class BookingForm : Form
+    {
+        private DataBaseManager dbManager;
+        private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
+
+        private ComboBox comboUsers = null!;
+        private ComboBox comboScreenings = null!;
+        private ListBox lstSeats = null!;
+        private NumericUpDown numTickets = null!;
+        private Label lblTotalPrice = null!;
+        private Button btnCreateBooking = null!;
+        private Button btnCancel = null!;
+
+        private decimal basePrice = 300m; // Базовая цена билета
+        private int currentScreeningId = -1;
+
+        public BookingForm()
+        {
+            InitializeComponent();
+            dbManager = new DataBaseManager(connectionString);
+            LoadComboBoxData();
+        }
+
+        private void InitializeComponent()
+        {
+            this.Text = "Новое бронирование";
+            this.Size = new Size(500, 500);
+            this.StartPosition = FormStartPosition.CenterParent;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+
+            // Пользователь
+            var lblUser = new Label();
+            lblUser.Text = "Пользователь:";
+            lblUser.Location = new Point(20, 20);
+            lblUser.Size = new Size(100, 20);
+
+            comboUsers = new ComboBox();
+            comboUsers.Location = new Point(120, 20);
+            comboUsers.Size = new Size(350, 20);
+            comboUsers.DropDownStyle = ComboBoxStyle.DropDownList;
+
+            // Сеанс
+            var lblScreening = new Label();
+            lblScreening.Text = "Сеанс:";
+            lblScreening.Location = new Point(20, 60);
+            lblScreening.Size = new Size(100, 20);
+
+            comboScreenings = new ComboBox();
+            comboScreenings.Location = new Point(120, 60);
+            comboScreenings.Size = new Size(350, 20);
+            comboScreenings.DropDownStyle = ComboBoxStyle.DropDownList;
+            comboScreenings.SelectedIndexChanged += ComboScreenings_SelectedIndexChanged;
+
+            // Количество билетов
+            var lblTickets = new Label();
+            lblTickets.Text = "Количество билетов:";
+            lblTickets.Location = new Point(20, 100);
+            lblTickets.Size = new Size(100, 20);
+
+            numTickets = new NumericUpDown();
+            numTickets.Location = new Point(120, 100);
+            numTickets.Size = new Size(100, 20);
+            numTickets.Minimum = 1;
+            numTickets.Maximum = 10;
+            numTickets.Value = 1;
+            numTickets.ValueChanged += NumTickets_ValueChanged;
+
+            // Доступные места
+            var lblSeats = new Label();
+            lblSeats.Text = "Доступные места:";
+            lblSeats.Location = new Point(20, 140);
+            lblSeats.Size = new Size(100, 20);
+
+            lstSeats = new ListBox();
+            lstSeats.Location = new Point(120, 140);
+            lstSeats.Size = new Size(350, 150);
+            lstSeats.SelectionMode = SelectionMode.MultiSimple;
+
+            // Общая стоимость
+            var lblTotal = new Label();
+            lblTotal.Text = "Общая стоимость:";
+            lblTotal.Location = new Point(20, 310);
+            lblTotal.Size = new Size(100, 20);
+
+            lblTotalPrice = new Label();
+            lblTotalPrice.Text = "0 руб";
+            lblTotalPrice.Location = new Point(120, 310);
+            lblTotalPrice.Size = new Size(200, 20);
+            lblTotalPrice.Font = new Font(lblTotalPrice.Font, FontStyle.Bold);
+
+            // Кнопки
+            btnCreateBooking = new Button();
+            btnCreateBooking.Text = "Создать бронь";
+            btnCreateBooking.Location = new Point(120, 350);
+            btnCreateBooking.Size = new Size(120, 30);
+            btnCreateBooking.Click += BtnCreateBooking_Click;
+
+            btnCancel = new Button();
+            btnCancel.Text = "Отмена";
+            btnCancel.Location = new Point(250, 350);
+            btnCancel.Size = new Size(100, 30);
+            btnCancel.Click += BtnCancel_Click;
+
+            this.Controls.AddRange(new Control[] {
+                lblUser, comboUsers,
+                lblScreening, comboScreenings,
+                lblTickets, numTickets,
+                lblSeats, lstSeats,
+                lblTotal, lblTotalPrice,
+                btnCreateBooking, btnCancel
+            });
+
+            UpdateTotalPrice();
+        }
+
+        private void LoadComboBoxData()
+        {
+            try
+            {
+                // Загрузка пользователей
+                var users = dbManager.GetUsers();
+                if (users.Rows.Count == 0)
+                {
+                    MessageBox.Show("В базе данных нет пользователей. Сначала добавьте пользователей.");
+                    return;
+                }
+                
+                comboUsers.DisplayMember = "name";
+                comboUsers.ValueMember = "user_id";
+                comboUsers.DataSource = users;
+
+                // Загрузка сеансов - показываем все сеансы, не только будущие
+                var screenings = dbManager.GetScreenings();
+                if (screenings.Rows.Count == 0)
+                {
+                    MessageBox.Show("В базе данных нет сеансов. Сначала добавьте сеансы.");
+                    return;
+                }
+                
+                // Показываем все сеансы без фильтрации по дате
+                comboScreenings.DisplayMember = "title";
+                comboScreenings.ValueMember = "screening_id";
+                comboScreenings.DataSource = screenings;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки данных: {ex.Message}\n\nПроверьте подключение к базе данных и наличие данных в таблицах.");
+            }
+        }
+
+        private void ComboScreenings_SelectedIndexChanged(object? sender, EventArgs e)
+        {
+            if (comboScreenings.SelectedValue != null)
+            {
+                currentScreeningId = Convert.ToInt32(comboScreenings.SelectedValue);
+                LoadAvailableSeats();
+                UpdateTotalPrice();
+            }
+        }
+
+        private void NumTickets_ValueChanged(object? sender, EventArgs e)
+        {
+            UpdateTotalPrice();
+        }
+
+        private void LoadAvailableSeats()
+        {
+            if (currentScreeningId == -1) return;
+
+            try
+            {
+                var screening = dbManager.GetScreeningById(currentScreeningId);
+                if (screening == null) 
+                {
+                    MessageBox.Show("Не удалось загрузить информацию о сеансе.");
+                    return;
+                }
+
+                var hallCapacity = Convert.ToInt32(screening["capacity"]);
+                var occupiedSeats = dbManager.GetOccupiedSeats(currentScreeningId);
+
+                lstSeats.Items.Clear();
+
+                // Генерируем доступные места (ряды A-Z, места 1-20)
+                for (char row = 'A'; row <= 'Z'; row++)
+                {
+                    for (int seatNum = 1; seatNum <= 20; seatNum++)
+                    {
+                        var seat = $"{row}{seatNum}";
+                        if (!occupiedSeats.Contains(seat))
+                        {
+                            lstSeats.Items.Add(seat);
+                        }
+                    }
+                }
+
+                if (lstSeats.Items.Count == 0)
+                {
+                    MessageBox.Show("Нет доступных мест для данного сеанса.");
+                    return;
+                }
+
+                // Автоматически выбираем первые N мест
+                var ticketsCount = (int)numTickets.Value;
+                for (int i = 0; i < Math.Min(ticketsCount, lstSeats.Items.Count); i++)
+                {
+                    lstSeats.SetSelected(i, true);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка загрузки мест: {ex.Message}");
+            }
+        }
+
+        private void UpdateTotalPrice()
+        {
+            if (currentScreeningId == -1) 
+            {
+                lblTotalPrice.Text = "0 руб";
+                return;
+            }
+
+            try
+            {
+                var screening = dbManager.GetScreeningById(currentScreeningId);
+                if (screening != null)
+                {
+                    var hallTypeId = Convert.ToInt32(screening["type_id"]);
+                    var ticketPrice = dbManager.CalculateTicketPrice(basePrice, hallTypeId);
+                    var total = ticketPrice * (int)numTickets.Value;
+                    lblTotalPrice.Text = $"{total:F2} руб";
+                }
+                else
+                {
+                    lblTotalPrice.Text = "0 руб";
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка расчета стоимости: {ex.Message}");
+                lblTotalPrice.Text = "Ошибка";
+            }
+        }
+
+        private void BtnCreateBooking_Click(object? sender, EventArgs e)
+        {
+            if (comboUsers.SelectedValue == null || comboScreenings.SelectedValue == null)
+            {
+                MessageBox.Show("Выберите пользователя и сеанс");
+                return;
+            }
+
+            var selectedSeats = lstSeats.SelectedItems;
+            if (selectedSeats.Count != numTickets.Value)
+            {
+                MessageBox.Show($"Выберите ровно {numTickets.Value} мест(а)");
+                return;
+            }
+
+            if (selectedSeats.Count == 0)
+            {
+                MessageBox.Show("Выберите места для бронирования");
+                return;
+            }
+
+            try
+            {
+                var userId = Convert.ToInt32(comboUsers.SelectedValue);
+                var screeningId = Convert.ToInt32(comboScreenings.SelectedValue);
+                
+                var screening = dbManager.GetScreeningById(screeningId);
+                if (screening == null) 
+                {
+                    MessageBox.Show("Не удалось загрузить информацию о сеансе");
+                    return;
+                }
+
+                var hallTypeId = Convert.ToInt32(screening["type_id"]);
+                var ticketPrice = dbManager.CalculateTicketPrice(basePrice, hallTypeId);
+                var totalAmount = ticketPrice * (int)numTickets.Value;
+
+                // Создаем бронирование
+                var bookingId = dbManager.CreateBooking(userId, totalAmount, "confirmed");
+
+                // Создаем билеты для каждого выбранного места
+                foreach (var seat in selectedSeats)
+                {
+                    if (seat != null)
+                    {
+                        dbManager.AddTicket(
+                            seat.ToString()!,
+                            basePrice,
+                            ticketPrice,
+                            bookingId,
+                            screeningId
+                        );
+                    }
+                }
+
+                MessageBox.Show($"Бронирование успешно создано!\nID бронирования: {bookingId}\nОбщая сумма: {totalAmount:F2} руб");
+                this.DialogResult = DialogResult.OK;
+                this.Close();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Ошибка создания бронирования: {ex.Message}\n\nПроверьте подключение к базе данных и корректность данных.");
+            }
+        }
+
+        private void BtnCancel_Click(object? sender, EventArgs e)
+        {
+            this.DialogResult = DialogResult.Cancel;
+            this.Close();
+        }
+    }
+}
