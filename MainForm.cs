@@ -491,9 +491,19 @@ namespace CinemaBookingApp
             }
             else
             {
-                // Обычный пользователь видит только кнопку создания бронирования
+                // Обычный пользователь видит кнопки для работы со своими бронированиями
+                btnCancelBooking.Text = "Отменить мою бронь";
+                btnCancelBooking.Location = new Point(170, 420);
+                btnCancelBooking.Size = new Size(150, 30);
+                btnCancelBooking.Click += BtnCancelMyBooking_Click;
+                
+                btnViewTickets.Text = "Мои билеты";
+                btnViewTickets.Location = new Point(330, 420);
+                btnViewTickets.Size = new Size(150, 30);
+                btnViewTickets.Click += BtnViewTickets_Click;
+                
                 tabBookings.Controls.AddRange(new Control[] {
-                    searchFilterBookings, dataGridBookings, btnNewBooking
+                    searchFilterBookings, dataGridBookings, btnNewBooking, btnCancelBooking, btnViewTickets
                 });
             }
         }
@@ -504,7 +514,25 @@ namespace CinemaBookingApp
             {
                 if (dataGridBookings == null || dbManager == null) return;
                 
-                dataGridBookings.DataSource = dbManager.GetBookings();
+                // Если пользователь не администратор, показываем только его бронирования
+                if (!IsCurrentUserAdmin())
+                {
+                    var userId = dbManager.GetUserIdByName(currentUserName ?? "");
+                    if (userId.HasValue)
+                    {
+                        dataGridBookings.DataSource = dbManager.GetBookingsByUserId(userId.Value);
+                    }
+                    else
+                    {
+                        // Если пользователь не найден в БД, показываем пустую таблицу
+                        dataGridBookings.DataSource = new DataTable();
+                    }
+                }
+                else
+                {
+                    // Администратор видит все бронирования
+                    dataGridBookings.DataSource = dbManager.GetBookings();
+                }
                 
                 // Устанавливаем целевую таблицу для поиска и фильтрации
                 searchFilterBookings.SetTargetDataGrid(dataGridBookings);
@@ -528,7 +556,7 @@ namespace CinemaBookingApp
 
         private void BtnNewBooking_Click(object? sender, EventArgs e)
         {
-            var bookingForm = new BookingForm();
+            var bookingForm = new BookingForm(currentUserName, IsCurrentUserAdmin());
             if (bookingForm.ShowDialog() == DialogResult.OK)
             {
                 LoadBookings();
@@ -561,6 +589,59 @@ namespace CinemaBookingApp
             }
         }
 
+        /// <summary>
+        /// Отмена собственного бронирования пользователем
+        /// </summary>
+        private void BtnCancelMyBooking_Click(object? sender, EventArgs e)
+        {
+            if (dataGridBookings.CurrentRow != null)
+            {
+                var bookingIdCell = dataGridBookings.CurrentRow.Cells["booking_id"];
+                var statusCell = dataGridBookings.CurrentRow.Cells["status"];
+                
+                if (bookingIdCell?.Value != null && statusCell?.Value != null)
+                {
+                    int bookingId = Convert.ToInt32(bookingIdCell.Value);
+                    string status = statusCell.Value.ToString() ?? "";
+                    
+                    // Проверяем, можно ли отменить бронирование
+                    if (status.ToLower() == "cancelled")
+                    {
+                        MessageBox.Show("Это бронирование уже отменено", "Информация", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        return;
+                    }
+                    
+                    // Подтверждение отмены
+                    string message = "Вы уверены, что хотите отменить свое бронирование?\n" +
+                                    "Это действие нельзя отменить!";
+                    
+                    if (MessageBox.Show(message, "Подтверждение отмены", 
+                        MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+                    {
+                        try
+                        {
+                            dbManager?.UpdateBookingStatus(bookingId, "cancelled");
+                            LoadBookings();
+                            
+                            MessageBox.Show("Ваше бронирование успешно отменено", "Отмена выполнена", 
+                                MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        catch (Exception ex)
+                        {
+                            MessageBox.Show($"Ошибка отмены брони: {ex.Message}", "Ошибка", 
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                MessageBox.Show("Выберите бронирование для отмены", "Внимание", 
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+
         private void BtnViewTickets_Click(object? sender, EventArgs e)
         {
             if (dataGridBookings.CurrentRow != null)
@@ -569,8 +650,13 @@ namespace CinemaBookingApp
                 if (bookingIdCell?.Value != null)
                 {
                     int bookingId = Convert.ToInt32(bookingIdCell.Value);
-                    var ticketsForm = new TicketsForm(bookingId);
-                    ticketsForm.ShowDialog();
+                    var ticketsForm = new TicketsForm(bookingId, currentUserName, IsCurrentUserAdmin());
+                    
+                    // Если в форме билетов были изменения, обновляем список бронирований
+                    if (ticketsForm.ShowDialog() == DialogResult.OK)
+                    {
+                        LoadBookings();
+                    }
                 }
             }
         }

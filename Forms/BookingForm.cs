@@ -11,6 +11,8 @@ namespace CinemaBookingApp.Forms
     {
         private DataBaseManager dbManager;
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
+        private string? currentUserName;
+        private bool isCurrentUserAdmin;
 
         private ComboBox comboUsers = null!;
         private ComboBox comboScreenings = null!;
@@ -23,8 +25,10 @@ namespace CinemaBookingApp.Forms
         private decimal basePrice = 300m; // Базовая цена билета
         private int currentScreeningId = -1;
 
-        public BookingForm()
+        public BookingForm(string? currentUserName = null, bool isCurrentUserAdmin = false)
         {
+            this.currentUserName = currentUserName;
+            this.isCurrentUserAdmin = isCurrentUserAdmin;
             InitializeComponent();
             dbManager = new DataBaseManager(connectionString);
             LoadComboBoxData();
@@ -32,14 +36,30 @@ namespace CinemaBookingApp.Forms
 
         private void InitializeComponent()
         {
-            this.Text = "Новое бронирование";
+            // Устанавливаем заголовок в зависимости от роли пользователя
+            if (isCurrentUserAdmin)
+            {
+                this.Text = "Новое бронирование";
+            }
+            else
+            {
+                this.Text = $"Новое бронирование - {currentUserName}";
+            }
+            
             this.Size = new Size(500, 500);
             this.StartPosition = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
 
             // Пользователь
             var lblUser = new Label();
-            lblUser.Text = "Пользователь:";
+            if (isCurrentUserAdmin)
+            {
+                lblUser.Text = "Пользователь:";
+            }
+            else
+            {
+                lblUser.Text = "Пользователь (ваше имя):";
+            }
             lblUser.Location = new Point(20, 20);
             lblUser.Size = new Size(100, 20);
 
@@ -127,16 +147,61 @@ namespace CinemaBookingApp.Forms
             try
             {
                 // Загрузка пользователей
-                var users = dbManager.GetUsers();
-                if (users.Rows.Count == 0)
+                if (isCurrentUserAdmin)
                 {
-                    MessageBox.Show("В базе данных нет пользователей. Сначала добавьте пользователей.");
-                    return;
+                    // Администратор видит всех пользователей
+                    var users = dbManager.GetUsers();
+                    if (users.Rows.Count == 0)
+                    {
+                        MessageBox.Show("В базе данных нет пользователей. Сначала добавьте пользователей.");
+                        return;
+                    }
+                    
+                    comboUsers.DisplayMember = "name";
+                    comboUsers.ValueMember = "user_id";
+                    comboUsers.DataSource = users;
                 }
-                
-                comboUsers.DisplayMember = "name";
-                comboUsers.ValueMember = "user_id";
-                comboUsers.DataSource = users;
+                else
+                {
+                    // Обычный пользователь видит только себя
+                    if (!string.IsNullOrEmpty(currentUserName))
+                    {
+                        var userId = dbManager.GetUserIdByName(currentUserName);
+                        if (userId.HasValue)
+                        {
+                            // Создаем DataTable с одним пользователем
+                            var userTable = new DataTable();
+                            userTable.Columns.Add("user_id", typeof(int));
+                            userTable.Columns.Add("name", typeof(string));
+                            
+                            var row = userTable.NewRow();
+                            row["user_id"] = userId.Value;
+                            row["name"] = currentUserName;
+                            userTable.Rows.Add(row);
+                            
+                            comboUsers.DisplayMember = "name";
+                            comboUsers.ValueMember = "user_id";
+                            comboUsers.DataSource = userTable;
+                            
+                            // Делаем ComboBox недоступным для изменения
+                            comboUsers.Enabled = false;
+                        }
+                        else
+                        {
+                            MessageBox.Show("Пользователь не найден в базе данных.", "Ошибка", 
+                                MessageBoxButtons.OK, MessageBoxIcon.Error);
+                            this.Close();
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("Не удалось определить текущего пользователя.", "Ошибка", 
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                        this.Close();
+                        return;
+                    }
+                }
 
                 // Загрузка сеансов - показываем все сеансы, не только будущие
                 var screenings = dbManager.GetScreenings();

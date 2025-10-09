@@ -436,6 +436,94 @@ namespace CinemaBookingApp.Data
             }
         }
 
+        /// <summary>
+        /// Отменить отдельные билеты в бронировании
+        /// </summary>
+        public void CancelTickets(int bookingId, List<int> ticketIds)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                using (var transaction = connection.BeginTransaction())
+                {
+                    try
+                    {
+                        // Удаляем выбранные билеты
+                        foreach (int ticketId in ticketIds)
+                        {
+                            string deleteTicketQuery = "DELETE FROM Ticket WHERE ticket_id = @ticket_id AND booking_id = @booking_id";
+                            var deleteCommand = new SqlCommand(deleteTicketQuery, connection, transaction);
+                            deleteCommand.Parameters.AddWithValue("@ticket_id", ticketId);
+                            deleteCommand.Parameters.AddWithValue("@booking_id", bookingId);
+                            deleteCommand.ExecuteNonQuery();
+                        }
+
+                        // Пересчитываем общую сумму бронирования
+                        string recalculateQuery = @"
+                            UPDATE Booking 
+                            SET total_amount = (
+                                SELECT ISNULL(SUM(price), 0) 
+                                FROM Ticket 
+                                WHERE booking_id = @booking_id
+                            )
+                            WHERE booking_id = @booking_id";
+                        
+                        var recalculateCommand = new SqlCommand(recalculateQuery, connection, transaction);
+                        recalculateCommand.Parameters.AddWithValue("@booking_id", bookingId);
+                        recalculateCommand.ExecuteNonQuery();
+
+                        // Проверяем, остались ли билеты в бронировании
+                        string checkTicketsQuery = "SELECT COUNT(*) FROM Ticket WHERE booking_id = @booking_id";
+                        var checkCommand = new SqlCommand(checkTicketsQuery, connection, transaction);
+                        checkCommand.Parameters.AddWithValue("@booking_id", bookingId);
+                        int remainingTickets = Convert.ToInt32(checkCommand.ExecuteScalar());
+
+                        // Если билетов не осталось, отменяем все бронирование
+                        if (remainingTickets == 0)
+                        {
+                            string cancelBookingQuery = "UPDATE Booking SET status = 'CANCELLED' WHERE booking_id = @booking_id";
+                            var cancelCommand = new SqlCommand(cancelBookingQuery, connection, transaction);
+                            cancelCommand.Parameters.AddWithValue("@booking_id", bookingId);
+                            cancelCommand.ExecuteNonQuery();
+                        }
+
+                        transaction.Commit();
+                    }
+                    catch
+                    {
+                        transaction.Rollback();
+                        throw;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Получить все билеты для конкретного бронирования
+        /// </summary>
+        public DataTable GetTicketsByBookingId(int bookingId)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = @"
+                    SELECT t.ticket_id, t.seat_number, t.price, 
+                           s.start_time, m.title as movie_title, h.hall_name
+                    FROM Ticket t
+                    INNER JOIN Screening s ON t.screening_id = s.screening_id
+                    INNER JOIN Movie m ON s.movie_id = m.movie_id
+                    INNER JOIN Cinema_Hall h ON s.hall_id = h.hall_id
+                    WHERE t.booking_id = @booking_id
+                    ORDER BY t.seat_number";
+                
+                var adapter = new SqlDataAdapter(query, connection);
+                adapter.SelectCommand.Parameters.AddWithValue("@booking_id", bookingId);
+                var dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                return dataTable;
+            }
+        }
+
         public DataTable GetBookings()
         {
             using (var connection = new SqlConnection(connectionString))
@@ -450,6 +538,44 @@ namespace CinemaBookingApp.Data
                 var dataTable = new DataTable();
                 adapter.Fill(dataTable);
                 return dataTable;
+            }
+        }
+
+        /// <summary>
+        /// Получить бронирования конкретного пользователя
+        /// </summary>
+        public DataTable GetBookingsByUserId(int userId)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = @"SELECT b.booking_id, u.name as customer_name, u.email, u.phone,
+                                       b.order_date, b.total_amount, b.status
+                                FROM Booking b
+                                INNER JOIN [User] u ON b.user_id = u.user_id
+                                WHERE b.user_id = @user_id
+                                ORDER BY b.order_date DESC";
+                var adapter = new SqlDataAdapter(query, connection);
+                adapter.SelectCommand.Parameters.AddWithValue("@user_id", userId);
+                var dataTable = new DataTable();
+                adapter.Fill(dataTable);
+                return dataTable;
+            }
+        }
+
+        /// <summary>
+        /// Получить ID пользователя по имени
+        /// </summary>
+        public int? GetUserIdByName(string userName)
+        {
+            using (var connection = new SqlConnection(connectionString))
+            {
+                connection.Open();
+                string query = "SELECT user_id FROM [User] WHERE name = @name";
+                var command = new SqlCommand(query, connection);
+                command.Parameters.AddWithValue("@name", userName);
+                var result = command.ExecuteScalar();
+                return result != null ? Convert.ToInt32(result) : null;
             }
         }
 
