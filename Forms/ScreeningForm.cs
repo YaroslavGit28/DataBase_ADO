@@ -1,36 +1,95 @@
-using System;
-using System.Data;
-using System.Drawing;
-using System.Windows.Forms;
-using CinemaBookingApp.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Data;               // Классы для работы с данными (DataTable, DataSet)
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Data;    // Наши классы для работы с базой данных
 
 namespace CinemaBookingApp.Forms
 {
+    /// <summary>
+    /// Форма для добавления и редактирования сеансов в кинотеатре
+    /// Позволяет выбрать фильм, зал, дату и время показа
+    /// </summary>
     public partial class ScreeningForm : Form
     {
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С ДАННЫМИ
+        // =============================================
+        
+        /// <summary>
+        /// ID сеанса для редактирования (null для создания нового)
+        /// </summary>
         private int? screeningId;
+        
+        /// <summary>
+        /// Менеджер базы данных для выполнения операций с сеансами
+        /// </summary>
         private DataBaseManager dbManager;
+        
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// </summary>
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
 
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Выпадающий список для выбора фильма
+        /// </summary>
         private ComboBox comboMovies = null!;
+        
+        /// <summary>
+        /// Выпадающий список для выбора зала
+        /// </summary>
         private ComboBox comboHalls = null!;
+        
+        /// <summary>
+        /// Элемент выбора даты сеанса
+        /// </summary>
         private DateTimePicker dtpDate = null!;
+        
+        /// <summary>
+        /// Элемент выбора времени начала сеанса
+        /// </summary>
         private DateTimePicker dtpStartTime = null!;
+        
+        /// <summary>
+        /// Элемент выбора времени окончания сеанса
+        /// </summary>
         private DateTimePicker dtpEndTime = null!;
+        
+        /// <summary>
+        /// Кнопка "Сохранить" для сохранения данных сеанса
+        /// </summary>
         private Button btnSave = null!;
+        
+        /// <summary>
+        /// Кнопка "Отмена" для закрытия формы без сохранения
+        /// </summary>
         private Button btnCancel = null!;
 
+        /// <summary>
+        /// Конструктор для создания нового сеанса
+        /// Инициализирует форму в режиме добавления
+        /// </summary>
         public ScreeningForm()
         {
-            InitializeComponent();
-            dbManager = new DataBaseManager(connectionString);
-            LoadComboBoxData();
+            InitializeComponent();                                    // Создаем элементы интерфейса
+            dbManager = new DataBaseManager(connectionString);       // Инициализируем менеджер БД
+            LoadComboBoxData();                                       // Загружаем данные для выпадающих списков
         }
 
-        public ScreeningForm(int screeningId) : this()
+        /// <summary>
+        /// Конструктор для редактирования существующего сеанса
+        /// Загружает данные сеанса в форму
+        /// </summary>
+        /// <param name="screeningId">ID сеанса для редактирования</param>
+        public ScreeningForm(int screeningId) : this()  // Вызываем базовый конструктор
         {
-            this.screeningId = screeningId;
-            LoadScreeningData();
+            this.screeningId = screeningId;             // Сохраняем ID сеанса
+            LoadScreeningData();                        // Загружаем данные сеанса
         }
 
         private void InitializeComponent()

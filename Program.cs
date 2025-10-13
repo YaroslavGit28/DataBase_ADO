@@ -1,32 +1,51 @@
-using System;
-using System.Windows.Forms;
-using CinemaBookingApp.Forms;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Forms;    // Наши пользовательские формы
 
 namespace CinemaBookingApp
 {
+    /// <summary>
+    /// Главный класс приложения системы бронирования билетов в кинотеатре
+    /// Содержит точку входа в приложение и логику запуска
+    /// </summary>
     internal static class Program
     {
+        /// <summary>
+        /// Атрибут для указания, что метод Main должен выполняться в однопоточном режиме
+        /// Необходим для корректной работы Windows Forms приложений
+        /// </summary>
         [STAThread]
+        
+        /// <summary>
+        /// Главная точка входа в приложение
+        /// Инициализирует Windows Forms и запускает процесс авторизации
+        /// </summary>
         static void Main()
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
+            // Настраиваем визуальные стили для Windows Forms
+            Application.EnableVisualStyles();                    // Включаем современные визуальные стили
+            Application.SetCompatibleTextRenderingDefault(false); // Отключаем устаревший рендеринг текста
             
-            // Показываем форму входа
-            using (var loginForm = new LoginForm())
+            // =============================================
+            // ПРОЦЕСС АВТОРИЗАЦИИ ПОЛЬЗОВАТЕЛЯ
+            // =============================================
+            
+            // Показываем форму входа в систему
+            using (var loginForm = new LoginForm())  // Создаем форму авторизации
             {
-                if (loginForm.ShowDialog() == DialogResult.OK)
+                // Показываем форму как диалог и ждем результата
+                if (loginForm.ShowDialog() == DialogResult.OK)  // Если пользователь успешно авторизовался
                 {
                     // Если авторизация успешна, запускаем основное приложение
-                    using (var mainForm = new MainForm(loginForm.UserRole, loginForm.UserName))
+                    using (var mainForm = new MainForm(loginForm.UserRole, loginForm.UserName))  // Создаем главную форму с данными пользователя
                     {
-                        Application.Run(mainForm);
+                        Application.Run(mainForm);  // Запускаем главное приложение
                     }
                 }
-                else
+                else  // Если пользователь отменил вход или произошла ошибка
                 {
                     // Если пользователь отменил вход, закрываем приложение
-                    Application.Exit();
+                    Application.Exit();  // Завершаем работу приложения
                 }
             }
         }

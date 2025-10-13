@@ -1,37 +1,116 @@
-using System;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
-using CinemaBookingApp.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Data;               // Классы для работы с данными (DataTable, DataSet)
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Linq;               // LINQ для работы с коллекциями
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Data;    // Наши классы для работы с базой данных
 
 namespace CinemaBookingApp.Forms
 {
+    /// <summary>
+    /// Форма для создания нового бронирования билетов в кинотеатре
+    /// Позволяет выбрать пользователя, сеанс, места и количество билетов
+    /// Поддерживает разные режимы для администраторов и обычных пользователей
+    /// </summary>
     public partial class BookingForm : Form
     {
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ
+        // =============================================
+        
+        /// <summary>
+        /// Менеджер базы данных для выполнения операций с бронированиями
+        /// </summary>
         private DataBaseManager dbManager;
+        
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// </summary>
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
+        
+        // =============================================
+        // ИНФОРМАЦИЯ О ТЕКУЩЕМ ПОЛЬЗОВАТЕЛЕ
+        // =============================================
+        
+        /// <summary>
+        /// Имя текущего пользователя для ограничения доступа
+        /// </summary>
         private string? currentUserName;
+        
+        /// <summary>
+        /// Флаг, указывающий является ли текущий пользователь администратором
+        /// </summary>
         private bool isCurrentUserAdmin;
 
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Выпадающий список для выбора пользователя (только для администраторов)
+        /// </summary>
         private ComboBox comboUsers = null!;
+        
+        /// <summary>
+        /// Выпадающий список для выбора сеанса
+        /// </summary>
         private ComboBox comboScreenings = null!;
+        
+        /// <summary>
+        /// Список доступных мест в зале
+        /// </summary>
         private ListBox lstSeats = null!;
+        
+        /// <summary>
+        /// Числовое поле для выбора количества билетов
+        /// </summary>
         private NumericUpDown numTickets = null!;
+        
+        /// <summary>
+        /// Метка для отображения общей стоимости бронирования
+        /// </summary>
         private Label lblTotalPrice = null!;
+        
+        /// <summary>
+        /// Кнопка "Создать бронирование" для сохранения заказа
+        /// </summary>
         private Button btnCreateBooking = null!;
+        
+        /// <summary>
+        /// Кнопка "Отмена" для закрытия формы без сохранения
+        /// </summary>
         private Button btnCancel = null!;
 
-        private decimal basePrice = 300m; // Базовая цена билета
+        // =============================================
+        // ПОЛЯ ДЛЯ РАСЧЕТА СТОИМОСТИ
+        // =============================================
+        
+        /// <summary>
+        /// Базовая цена одного билета в рублях
+        /// </summary>
+        private decimal basePrice = 300m;
+        
+        /// <summary>
+        /// ID текущего выбранного сеанса
+        /// </summary>
         private int currentScreeningId = -1;
 
+        /// <summary>
+        /// Конструктор формы бронирования
+        /// Инициализирует форму с учетом роли и имени пользователя
+        /// </summary>
+        /// <param name="currentUserName">Имя текущего пользователя</param>
+        /// <param name="isCurrentUserAdmin">Флаг администратора</param>
         public BookingForm(string? currentUserName = null, bool isCurrentUserAdmin = false)
         {
-            this.currentUserName = currentUserName;
-            this.isCurrentUserAdmin = isCurrentUserAdmin;
-            InitializeComponent();
-            dbManager = new DataBaseManager(connectionString);
-            LoadComboBoxData();
+            // Сохраняем информацию о текущем пользователе
+            this.currentUserName = currentUserName;         // Устанавливаем имя пользователя
+            this.isCurrentUserAdmin = isCurrentUserAdmin;  // Устанавливаем флаг администратора
+            
+            // Инициализируем форму
+            InitializeComponent();                                    // Создаем элементы интерфейса
+            dbManager = new DataBaseManager(connectionString);       // Инициализируем менеджер БД
+            LoadComboBoxData();                                       // Загружаем данные для выпадающих списков
         }
 
         private void InitializeComponent()

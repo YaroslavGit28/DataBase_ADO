@@ -1,55 +1,94 @@
-using System;
-using System.Data;
-using System.Collections.Generic;
-using Microsoft.Data.SqlClient;
-using CinemaBookingApp.Models;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Data;               // Классы для работы с данными (DataTable, DataSet)
+using System.Collections.Generic; // Коллекции (List, Dictionary)
+using Microsoft.Data.SqlClient;  // Классы для работы с SQL Server
+using CinemaBookingApp.Models;    // Наши модели данных
 
 namespace CinemaBookingApp.Data
 {
+    /// <summary>
+    /// Менеджер базы данных для работы с данными через ADO.NET
+    /// Предоставляет методы для выполнения SQL запросов и управления данными
+    /// </summary>
     public class DataBaseManager
     {
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// Содержит адрес сервера, имя базы данных, учетные данные и параметры безопасности
+        /// </summary>
         private string connectionString;
 
+        /// <summary>
+        /// Конструктор менеджера базы данных
+        /// Инициализирует строку подключения к базе данных
+        /// </summary>
+        /// <param name="connectionString">Строка подключения к базе данных</param>
         public DataBaseManager(string connectionString)
         {
-            this.connectionString = connectionString;
+            this.connectionString = connectionString;  // Сохраняем строку подключения
         }
 
-        #region User Methods
+        // =============================================
+        // МЕТОДЫ ДЛЯ РАБОТЫ С ПОЛЬЗОВАТЕЛЯМИ
+        // =============================================
+        
+        /// <summary>
+        /// Добавляет нового пользователя в базу данных
+        /// </summary>
+        /// <param name="name">Имя пользователя</param>
+        /// <param name="email">Email адрес пользователя</param>
+        /// <param name="phone">Номер телефона (необязательный параметр)</param>
+        /// <returns>ID созданного пользователя</returns>
         public int AddUser(string name, string email, string? phone = null)
         {
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))  // Создаем подключение к БД
             {
-                connection.Open();
+                connection.Open();  // Открываем соединение с базой данных
+                
+                // SQL запрос для добавления пользователя с возвратом ID
                 string query = @"INSERT INTO [User] (name, email, phone) 
                                OUTPUT INSERTED.user_id 
                                VALUES (@name, @email, @phone)";
                 
-                var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@name", name);
-                command.Parameters.AddWithValue("@email", email);
-                command.Parameters.AddWithValue("@phone", phone ?? (object)DBNull.Value);
+                var command = new SqlCommand(query, connection);  // Создаем команду SQL
                 
+                // Добавляем параметры к команде для защиты от SQL инъекций
+                command.Parameters.AddWithValue("@name", name);                    // Имя пользователя
+                command.Parameters.AddWithValue("@email", email);                 // Email адрес
+                command.Parameters.AddWithValue("@phone", phone ?? (object)DBNull.Value);  // Телефон или NULL
+                
+                // Выполняем команду и возвращаем ID созданного пользователя
                 return Convert.ToInt32(command.ExecuteScalar());
             }
         }
 
+        /// <summary>
+        /// Обновляет информацию о существующем пользователе
+        /// </summary>
+        /// <param name="userId">ID пользователя для обновления</param>
+        /// <param name="name">Новое имя пользователя</param>
+        /// <param name="email">Новый email адрес</param>
+        /// <param name="phone">Новый номер телефона (необязательный параметр)</param>
         public void UpdateUser(int userId, string name, string email, string? phone = null)
         {
-            using (var connection = new SqlConnection(connectionString))
+            using (var connection = new SqlConnection(connectionString))  // Создаем подключение к БД
             {
-                connection.Open();
+                connection.Open();  // Открываем соединение с базой данных
+                
+                // SQL запрос для обновления данных пользователя
                 string query = @"UPDATE [User] 
                                SET name = @name, email = @email, phone = @phone 
                                WHERE user_id = @user_id";
                 
-                var command = new SqlCommand(query, connection);
-                command.Parameters.AddWithValue("@user_id", userId);
-                command.Parameters.AddWithValue("@name", name);
-                command.Parameters.AddWithValue("@email", email);
-                command.Parameters.AddWithValue("@phone", phone ?? (object)DBNull.Value);
+                var command = new SqlCommand(query, connection);  // Создаем команду SQL
                 
-                command.ExecuteNonQuery();
+                // Добавляем параметры к команде для защиты от SQL инъекций
+                command.Parameters.AddWithValue("@user_id", userId);              // ID пользователя
+                command.Parameters.AddWithValue("@name", name);                    // Новое имя
+                command.Parameters.AddWithValue("@email", email);                 // Новый email
+                command.Parameters.AddWithValue("@phone", phone ?? (object)DBNull.Value);  // Новый телефон или NULL
+                
+                command.ExecuteNonQuery();  // Выполняем команду обновления
             }
         }
 
@@ -714,20 +753,28 @@ namespace CinemaBookingApp.Data
         }
         #endregion
 
-        #region Utility Methods
+        // =============================================
+        // ВСПОМОГАТЕЛЬНЫЕ МЕТОДЫ
+        // =============================================
+        
+        /// <summary>
+        /// Тестирует подключение к базе данных
+        /// Проверяет, можно ли установить соединение с SQL Server
+        /// </summary>
+        /// <returns>true если подключение успешно, false если произошла ошибка</returns>
         public bool TestConnection()
         {
-            try
+            try  // Обрабатываем возможные ошибки подключения
             {
-                using (var connection = new SqlConnection(connectionString))
+                using (var connection = new SqlConnection(connectionString))  // Создаем подключение
                 {
-                    connection.Open();
-                    return true;
+                    connection.Open();  // Пытаемся открыть соединение
+                    return true;        // Если успешно - возвращаем true
                 }
             }
-            catch
+            catch  // Если произошла любая ошибка
             {
-                return false;
+                return false;  // Возвращаем false
             }
         }
 

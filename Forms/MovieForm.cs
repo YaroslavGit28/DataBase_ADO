@@ -1,34 +1,89 @@
-using System;
-using System.Data;
-using System.Drawing;
-using System.Windows.Forms;
-using CinemaBookingApp.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Data;               // Классы для работы с данными (DataTable, DataSet)
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Data;    // Наши классы для работы с базой данных
 
 namespace CinemaBookingApp.Forms
 {
+    /// <summary>
+    /// Форма для добавления и редактирования фильмов в каталоге кинотеатра
+    /// Позволяет ввести название, жанр, продолжительность и описание фильма
+    /// </summary>
     public partial class MovieForm : Form
     {
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С ДАННЫМИ
+        // =============================================
+        
+        /// <summary>
+        /// ID фильма для редактирования (null для создания нового)
+        /// </summary>
         private int? movieId;
+        
+        /// <summary>
+        /// Менеджер базы данных для выполнения операций с фильмами
+        /// </summary>
         private DataBaseManager dbManager;
+        
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// </summary>
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
 
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Поле ввода названия фильма
+        /// </summary>
         private TextBox txtTitle = null!;
+        
+        /// <summary>
+        /// Поле ввода жанра фильма
+        /// </summary>
         private TextBox txtGenre = null!;
+        
+        /// <summary>
+        /// Числовое поле для ввода продолжительности фильма в минутах
+        /// </summary>
         private NumericUpDown numDuration = null!;
+        
+        /// <summary>
+        /// Многострочное поле для ввода описания фильма
+        /// </summary>
         private TextBox txtDescription = null!;
+        
+        /// <summary>
+        /// Кнопка "Сохранить" для сохранения данных фильма
+        /// </summary>
         private Button btnSave = null!;
+        
+        /// <summary>
+        /// Кнопка "Отмена" для закрытия формы без сохранения
+        /// </summary>
         private Button btnCancel = null!;
 
+        /// <summary>
+        /// Конструктор для создания нового фильма
+        /// Инициализирует форму в режиме добавления
+        /// </summary>
         public MovieForm()
         {
-            InitializeComponent();
-            dbManager = new DataBaseManager(connectionString);
+            InitializeComponent();                                    // Создаем элементы интерфейса
+            dbManager = new DataBaseManager(connectionString);       // Инициализируем менеджер БД
         }
 
-        public MovieForm(int movieId) : this()
+        /// <summary>
+        /// Конструктор для редактирования существующего фильма
+        /// Загружает данные фильма в форму
+        /// </summary>
+        /// <param name="movieId">ID фильма для редактирования</param>
+        public MovieForm(int movieId) : this()  // Вызываем базовый конструктор
         {
-            this.movieId = movieId;
-            LoadMovieData();
+            this.movieId = movieId;             // Сохраняем ID фильма
+            LoadMovieData();                    // Загружаем данные фильма
         }
 
         private void InitializeComponent()

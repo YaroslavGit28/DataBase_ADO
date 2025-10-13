@@ -1,34 +1,100 @@
-using System;
-using System.Drawing;
-using System.Windows.Forms;
-using System.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using System.Data;               // Классы для работы с данными (DataTable, DataSet)
 
 namespace CinemaBookingApp.Forms
 {
     /// <summary>
-    /// Универсальный компонент для поиска и фильтрации данных
+    /// Универсальный компонент для поиска и фильтрации данных в DataGridView
+    /// Предоставляет возможности поиска по тексту и фильтрации по колонкам с различными операторами
     /// </summary>
     public partial class SearchFilterControl : UserControl
     {
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Поле ввода текста для поиска
+        /// </summary>
         private TextBox txtSearch = null!;
+        
+        /// <summary>
+        /// Выпадающий список для выбора колонки фильтрации
+        /// </summary>
         private ComboBox cmbFilterColumn = null!;
+        
+        /// <summary>
+        /// Выпадающий список для выбора оператора фильтрации (=, >, <, содержит и т.д.)
+        /// </summary>
         private ComboBox cmbFilterOperator = null!;
+        
+        /// <summary>
+        /// Поле ввода значения для фильтрации
+        /// </summary>
         private TextBox txtFilterValue = null!;
+        
+        /// <summary>
+        /// Кнопка "Поиск" для выполнения поиска
+        /// </summary>
         private Button btnSearch = null!;
+        
+        /// <summary>
+        /// Кнопка "Очистить" для сброса фильтров
+        /// </summary>
         private Button btnClear = null!;
+        
+        /// <summary>
+        /// Метка "Поиск:" для поля поиска
+        /// </summary>
         private Label lblSearch = null!;
+        
+        /// <summary>
+        /// Метка "Фильтр:" для элементов фильтрации
+        /// </summary>
         private Label lblFilter = null!;
         
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С ДАННЫМИ
+        // =============================================
+        
+        /// <summary>
+        /// Целевая таблица DataGridView для применения поиска и фильтрации
+        /// </summary>
         private DataGridView? targetDataGrid;
+        
+        /// <summary>
+        /// Оригинальные данные таблицы (до применения фильтров)
+        /// </summary>
         private DataTable? originalData;
+        
+        /// <summary>
+        /// Отфильтрованные данные таблицы
+        /// </summary>
         private DataTable? filteredData;
         
+        // =============================================
+        // СОБЫТИЯ КОМПОНЕНТА
+        // =============================================
+        
+        /// <summary>
+        /// Событие, возникающее при выполнении поиска
+        /// </summary>
         public event EventHandler? SearchPerformed;
+        
+        /// <summary>
+        /// Событие, возникающее при очистке фильтров
+        /// </summary>
         public event EventHandler? FilterCleared;
 
+        /// <summary>
+        /// Конструктор компонента поиска и фильтрации
+        /// Инициализирует пользовательский интерфейс
+        /// </summary>
         public SearchFilterControl()
         {
-            InitializeComponent();
+            InitializeComponent();  // Создаем элементы интерфейса
         }
 
         private void InitializeComponent()

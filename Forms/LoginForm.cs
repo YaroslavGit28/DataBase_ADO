@@ -1,41 +1,98 @@
-using System;
-using System.Drawing;
-using System.Linq;
-using System.Windows.Forms;
-using CinemaBookingApp.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Linq;               // LINQ для работы с коллекциями
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Data;    // Наши классы для работы с базой данных
 
 namespace CinemaBookingApp.Forms
 {
     /// <summary>
-    /// Форма авторизации пользователя
+    /// Форма авторизации пользователя в системе бронирования кинотеатра
+    /// Обрабатывает вход администраторов и обычных пользователей
     /// </summary>
     public partial class LoginForm : Form
     {
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Поле ввода логина (email или имя пользователя)
+        /// </summary>
         private TextBox txtLogin = null!;
+        
+        /// <summary>
+        /// Поле ввода пароля (только для администраторов)
+        /// </summary>
         private TextBox txtPassword = null!;
+        
+        /// <summary>
+        /// Кнопка "Войти" для выполнения авторизации
+        /// </summary>
         private Button btnLogin = null!;
+        
+        /// <summary>
+        /// Кнопка "Отмена" для закрытия формы без входа
+        /// </summary>
         private Button btnCancel = null!;
+        
+        /// <summary>
+        /// Метка для отображения статуса авторизации и подсказок
+        /// </summary>
         private Label lblStatus = null!;
         
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С БАЗОЙ ДАННЫХ
+        // =============================================
+        
+        /// <summary>
+        /// Репозиторий для работы с данными через Dapper ORM
+        /// Используется для проверки пользователей в базе данных
+        /// </summary>
         private DapperRepository? dapperRepo;
+        
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// Содержит адрес сервера, имя базы данных, учетные данные и параметры безопасности
+        /// </summary>
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
         
-        [System.ComponentModel.Browsable(false)]
-        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        // =============================================
+        // СВОЙСТВА ДЛЯ ПЕРЕДАЧИ РЕЗУЛЬТАТОВ АВТОРИЗАЦИИ
+        // =============================================
+        
+        /// <summary>
+        /// Флаг успешной авторизации пользователя
+        /// true - пользователь успешно вошел в систему, false - авторизация не выполнена
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]  // Скрываем от дизайнера форм
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]  // Не сериализуем
         public bool IsAuthenticated { get; private set; } = false;
         
-        [System.ComponentModel.Browsable(false)]
-        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        /// <summary>
+        /// Роль авторизованного пользователя (Admin или User)
+        /// Определяет доступные функции в главном приложении
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]  // Скрываем от дизайнера форм
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]  // Не сериализуем
         public string? UserRole { get; private set; }
         
-        [System.ComponentModel.Browsable(false)]
-        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+        /// <summary>
+        /// Имя авторизованного пользователя
+        /// Используется для отображения в главном приложении
+        /// </summary>
+        [System.ComponentModel.Browsable(false)]  // Скрываем от дизайнера форм
+        [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]  // Не сериализуем
         public string? UserName { get; private set; }
 
+        /// <summary>
+        /// Конструктор формы авторизации
+        /// Инициализирует интерфейс и подключается к базе данных
+        /// </summary>
         public LoginForm()
         {
-            InitializeComponent();
-            dapperRepo = new DapperRepository(connectionString);
+            InitializeComponent();                                    // Создаем элементы интерфейса
+            dapperRepo = new DapperRepository(connectionString);     // Инициализируем репозиторий для работы с БД
         }
 
         private void InitializeComponent()
@@ -133,55 +190,72 @@ namespace CinemaBookingApp.Forms
             }
         }
 
+        /// <summary>
+        /// Обработчик нажатия кнопки "Войти"
+        /// Выполняет авторизацию пользователя (администратора или обычного пользователя)
+        /// </summary>
+        /// <param name="sender">Объект, вызвавший событие (кнопка)</param>
+        /// <param name="e">Аргументы события</param>
         private async void BtnLogin_Click(object? sender, EventArgs e)
         {
+            // Проверяем, что поля логина и пароля заполнены
             if (string.IsNullOrWhiteSpace(txtLogin.Text) || string.IsNullOrWhiteSpace(txtPassword.Text))
             {
-                lblStatus.Text = "Введите логин и пароль";
-                return;
+                lblStatus.Text = "Введите логин и пароль";  // Показываем сообщение об ошибке
+                return;  // Прерываем выполнение
             }
 
-            btnLogin.Enabled = false;
-            lblStatus.Text = "Проверка учетных данных...";
+            // Блокируем кнопку и показываем статус проверки
+            btnLogin.Enabled = false;                        // Отключаем кнопку для предотвращения повторных нажатий
+            lblStatus.Text = "Проверка учетных данных...";   // Показываем статус проверки
 
-            try
+            try  // Обрабатываем возможные ошибки при авторизации
             {
-                // Проверка администратора
+                // =============================================
+                // ПРОВЕРКА АДМИНИСТРАТОРА
+                // =============================================
+                
+                // Проверяем учетные данные администратора
                 if (txtLogin.Text.ToLower() == "admin" && txtPassword.Text == "123")
                 {
-                    IsAuthenticated = true;
-                    UserRole = "Admin";
-                    UserName = "Администратор";
-                    lblStatus.Text = "Успешный вход как администратор";
-                    lblStatus.ForeColor = Color.Green;
+                    // Устанавливаем флаги успешной авторизации администратора
+                    IsAuthenticated = true;                    // Помечаем как авторизованного
+                    UserRole = "Admin";                         // Устанавливаем роль администратора
+                    UserName = "Администратор";                 // Устанавливаем имя администратора
+                    lblStatus.Text = "Успешный вход как администратор";  // Показываем сообщение об успехе
+                    lblStatus.ForeColor = Color.Green;         // Устанавливаем зеленый цвет текста
                     
-                    await Task.Delay(1000); // Небольшая задержка для показа сообщения
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
-                    return;
+                    await Task.Delay(1000);                     // Небольшая задержка для показа сообщения
+                    this.DialogResult = DialogResult.OK;        // Устанавливаем результат диалога как успешный
+                    this.Close();                               // Закрываем форму авторизации
+                    return;                                     // Выходим из метода
                 }
 
-                // Проверка обычного пользователя по имени или email
+                // =============================================
+                // ПРОВЕРКА ОБЫЧНОГО ПОЛЬЗОВАТЕЛЯ
+                // =============================================
+                
+                // Ищем пользователя по email в базе данных
                 var user = await dapperRepo!.GetUserByEmailAsync(txtLogin.Text.Trim());
-                if (user == null)
+                if (user == null)  // Если не найден по email
                 {
-                    // Если не найден по email, ищем по имени
-                    var users = await dapperRepo.GetUsersAsync();
-                    user = users.FirstOrDefault(u => u.Name.ToLower().Contains(txtLogin.Text.Trim().ToLower()));
+                    // Ищем пользователя по имени (частичное совпадение)
+                    var users = await dapperRepo.GetUsersAsync();  // Получаем всех пользователей
+                    user = users.FirstOrDefault(u => u.Name.ToLower().Contains(txtLogin.Text.Trim().ToLower()));  // Ищем по имени
                 }
                 
-                if (user != null)
+                if (user != null)  // Если пользователь найден
                 {
-                    // Для обычных пользователей пароль не проверяем
-                    IsAuthenticated = true;
-                    UserRole = user.Role?.RoleName ?? "User";
-                    UserName = user.Name;
-                    lblStatus.Text = $"Добро пожаловать, {user.Name}!";
-                    lblStatus.ForeColor = Color.Green;
+                    // Для обычных пользователей пароль не проверяем (только имя)
+                    IsAuthenticated = true;                           // Помечаем как авторизованного
+                    UserRole = user.Role?.RoleName ?? "User";        // Устанавливаем роль пользователя
+                    UserName = user.Name;                             // Устанавливаем имя пользователя
+                    lblStatus.Text = $"Добро пожаловать, {user.Name}!";  // Показываем приветствие
+                    lblStatus.ForeColor = Color.Green;                // Устанавливаем зеленый цвет текста
                     
-                    await Task.Delay(1000);
-                    this.DialogResult = DialogResult.OK;
-                    this.Close();
+                    await Task.Delay(1000);                           // Небольшая задержка для показа сообщения
+                    this.DialogResult = DialogResult.OK;              // Устанавливаем результат диалога как успешный
+                    this.Close();                                     // Закрываем форму авторизации
                     return;
                 }
                 

@@ -1,33 +1,84 @@
-using System;
-using System.Drawing;
-using System.Text.RegularExpressions;
-using System.Windows.Forms;
-using CinemaBookingApp.Data;
+using System;                    // Базовые типы и классы .NET Framework
+using System.Drawing;            // Классы для работы с графикой и цветами
+using System.Text.RegularExpressions;  // Классы для работы с регулярными выражениями
+using System.Windows.Forms;      // Классы для создания Windows Forms приложений
+using CinemaBookingApp.Data;    // Наши классы для работы с базой данных
 
 namespace CinemaBookingApp.Forms
 {
+    /// <summary>
+    /// Форма для добавления и редактирования пользователей системы
+    /// Включает валидацию данных и автоматическое форматирование номера телефона
+    /// </summary>
     public partial class UserForm : Form
     {
+        // =============================================
+        // ПОЛЯ ДЛЯ РАБОТЫ С ДАННЫМИ
+        // =============================================
+        
+        /// <summary>
+        /// ID пользователя для редактирования (null для создания нового)
+        /// </summary>
         private int? userId;
+        
+        /// <summary>
+        /// Менеджер базы данных для выполнения операций с пользователями
+        /// </summary>
         private DataBaseManager dbManager;
+        
+        /// <summary>
+        /// Строка подключения к базе данных SQL Server
+        /// </summary>
         private string connectionString = "Server=192.168.9.203\\SQLEXPRESS;Database=Проект Вакула, Белов, Сухинин;User Id=student1;Password=123456;TrustServerCertificate=true;";
 
+        // =============================================
+        // ЭЛЕМЕНТЫ ПОЛЬЗОВАТЕЛЬСКОГО ИНТЕРФЕЙСА
+        // =============================================
+        
+        /// <summary>
+        /// Поле ввода имени пользователя
+        /// </summary>
         private TextBox txtName = null!;
+        
+        /// <summary>
+        /// Поле ввода email адреса пользователя
+        /// </summary>
         private TextBox txtEmail = null!;
+        
+        /// <summary>
+        /// Поле ввода номера телефона с автоматическим форматированием
+        /// </summary>
         private TextBox txtPhone = null!;
+        
+        /// <summary>
+        /// Кнопка "Сохранить" для сохранения данных пользователя
+        /// </summary>
         private Button btnSave = null!;
+        
+        /// <summary>
+        /// Кнопка "Отмена" для закрытия формы без сохранения
+        /// </summary>
         private Button btnCancel = null!;
 
+        /// <summary>
+        /// Конструктор для создания нового пользователя
+        /// Инициализирует форму в режиме добавления
+        /// </summary>
         public UserForm()
         {
-            InitializeComponent();
-            dbManager = new DataBaseManager(connectionString);
+            InitializeComponent();                                    // Создаем элементы интерфейса
+            dbManager = new DataBaseManager(connectionString);       // Инициализируем менеджер БД
         }
 
-        public UserForm(int userId) : this()
+        /// <summary>
+        /// Конструктор для редактирования существующего пользователя
+        /// Загружает данные пользователя в форму
+        /// </summary>
+        /// <param name="userId">ID пользователя для редактирования</param>
+        public UserForm(int userId) : this()  // Вызываем базовый конструктор
         {
-            this.userId = userId;
-            LoadUserData();
+            this.userId = userId;             // Сохраняем ID пользователя
+            LoadUserData();                   // Загружаем данные пользователя
         }
 
         private void InitializeComponent()
